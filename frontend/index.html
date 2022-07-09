@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="de">
+    <head>
+        <meta charset="utf-8">
+        <title>Kurator</title>
+        <meta name="description" content="Ein Tool, um Wortlisten zu pflegen">
+        <meta name="keywords" content="Sprache, Tool">
+        <meta name="author" content="Oliver Lau">
+        <meta name="designer" content="Oliver Lau">
+        <meta name="publisher" content="Oliver Lau">
+        <meta name="copyright" content="Oliver Lau">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script async src="kurator.js"></script>
+        <link rel="stylesheet" href="default.css" />
+    </head>
+    <body>
+        <div id="app">
+            <div id="main"></div>
+            <div id="extra">
+                <div></div>
+                <div></div>
+                <div>
+                    <div>
+                        Beschreibung
+                        <br>
+                        <input disabled type="text" id="description" tabindex="2" />    
+                    </div>
+                    <div>
+                        Tags
+                        <br>
+                        <div class="tag-container">
+                            <input disabled type="text" tabindex="2" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                Bedienung:
+                <br>
+                Wort eingeben; <span style="background-color: #6dcf6d; padding-left: 2px; padding-right: 2px;">Grün</span> = Wort bereits vorhanden.
+                Backslash (\) oder Pipe-Symbol (|) in Beschreibung wird durch Bedarfstrennstrich (soft hyphen, U+00AD) ersetzt.
+                Neues Wort mit Umschalt+Enter bestätigen, egal in welchem Eingabefeld.
+            </div>
+        </div>
+    </body>
+</html>
