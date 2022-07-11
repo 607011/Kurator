@@ -2,14 +2,20 @@
     padding: 0;
     margin: 0;
     box-sizing: border-box;
-    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-    font-size: 12pt;
+    font-family: Hack, monospace;
+    font-size: 10pt;
+}
+
+h1 {
+    font-size: x-large;
+    color: #222;
+    margin-bottom: 8px;
+    text-decoration: underline;
 }
 
 #app {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-direction: column;
 }
 
 #app > div {
@@ -36,11 +42,9 @@
 }
 
 #main span:nth-child(odd) {
-    border: 1px solid #333;
-    background-color: #ccc;
     color: #444;
-    border-radius: 4px;
     height: 20pt;
+    border-bottom: 1px dashed #666;
 }
 
 #word {
@@ -49,10 +53,15 @@
     font-size: 120%;
     padding: 5px 4px;
     outline: none;
+    background-color: #f0f0f0;
 }
 
 #word.match {
     background-color: #6dcf6d;
+}
+
+#description {
+    background-color: #f0f0f0;
 }
 
 #extra {
@@ -63,11 +72,13 @@
 }
 
 #extra > div > div {
-    margin-bottom: 12px;
+    margin-top: 12px;
 }
 
-#extra > div > div:last-child {
-    margin-bottom: 0;
+label {
+    font-weight: bold;
+    margin: 6px 0 4px 0;
+    display: inline-block;
 }
 
 input {
@@ -97,7 +108,7 @@ input {
     padding: 4px 6px;
     border: 1px solid #ccc;
     border-radius: 3px;
-    background: #eee;
+    background: rgb(216, 185, 107);
     display: flex;
     align-items: center;
     color: #333;

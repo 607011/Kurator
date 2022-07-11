@@ -5,8 +5,13 @@ const HOST = (function(window) {
     }
 })(window);
 
+
 (function(window) {
     'use strict';
+
+    Number.prototype.clamp = function(lo, hi) {
+        return Math.max(lo, Math.min(this, hi));
+    }
 
     class Corpus {
         static URL = {
@@ -33,8 +38,7 @@ const HOST = (function(window) {
             });
         }
         async fetchAll() {
-            const reply = await fetch(Corpus.URL.CORPUS,
-                {
+            const reply = await fetch(Corpus.URL.CORPUS, {
                     method: 'GET',
                     cache: 'no-cache',
                     mode: 'cors',
@@ -102,24 +106,48 @@ const HOST = (function(window) {
             return this.searchCollator.compare(a, b)
         }
         closestIndexOf(word) {
-            if (word === '') {
+            if (word.length === 0) {
                 return -1;
             }
             let lo = 0;
-            let hi = this._words.length;
+            let hi = this.size;
             while (lo <= hi) {
-                const pos = Math.floor((lo + hi) / 2);
+                const pos = (lo + hi) >> 1;
+                if (pos === this.size) {
+                    return -1;
+                }
                 const other = this._words[pos].word;
                 if (this.compare(word, other) < 0) {
-                    if (this.compare(word, this._words[pos-1].word) > 0) {
+                    if (pos > 0 && this.compare(word, this._words[pos-1].word) > 0) {
                         return pos;
                     }
                     hi = pos - 1;
                 }
                 else if (this.compare(word, other) > 0) {
-                    if (this.compare(word, this._words[pos+1].word) < 0) {
+                    if (pos < this.size-1 && this.compare(word, this._words[pos+1].word) < 0) {
                         return pos+1;
                     }
+                    lo = pos + 1;
+                }
+                else {
+                    return pos;
+                }
+            }
+            return -1;
+        }
+        indexOf(word) {
+            if (word.length === 0) {
+                return -1;
+            }
+            let lo = 0;
+            let hi = this.size;
+            while (lo <= hi) {
+                const pos = (lo + hi) >> 1;
+                const other = this._words[pos].word;
+                if (this.compare(word, other) < 0) {
+                    hi = pos - 1;
+                }
+                else if (this.compare(word, other) > 0) {
                     lo = pos + 1;
                 }
                 else {
@@ -136,8 +164,8 @@ const HOST = (function(window) {
         }
     }
 
-    const N_AROUND = 5;
-    let corpus, el;
+    const N_AROUND = 3;
+    let corpus, el, currentIdx = -1;
     let predecessors = [];
     let successors = [];
     let tags = [];
@@ -156,11 +184,11 @@ const HOST = (function(window) {
     }
 
     function update(word) {
-        const idx = corpus.closestIndexOf(word);
-        const match = idx >= 0 && corpus.compare(corpus.words[idx].word, word) === 0;
-        if (word.length > 0) {
-            predecessors = corpus.words.slice(Math.max(0, idx-N_AROUND), idx);
-            successors = corpus.words.slice(match?idx+1:idx, Math.min((match?idx+1:idx)+N_AROUND, corpus.size));
+        currentIdx = corpus.closestIndexOf(word);
+        const match = currentIdx >= 0 && corpus.compare(corpus.words[currentIdx].word, word) === 0;
+        if (word.length > 0 && currentIdx >= 0) {
+            predecessors = corpus.words.slice(Math.max(0, currentIdx-N_AROUND), currentIdx);
+            successors = corpus.words.slice(match?currentIdx+1:currentIdx, Math.min((match?currentIdx+1:currentIdx)+N_AROUND, corpus.size));
         }
         else {
             predecessors = [];
@@ -168,44 +196,74 @@ const HOST = (function(window) {
         }
         if (match) {
             el.wordInput.classList.add('match');
+            const description = corpus.words[currentIdx].description
+            ? corpus.words[currentIdx].description
+            : '';
+            el.descriptionInput.value = description.replaceAll('&shy;', '|');
         }
         else {
             el.wordInput.classList.remove('match');
+            el.descriptionInput.value = '';
         }
         updateList();
     }
 
     function onWordChange(e) {
-        const word = e.target.value;
-        update(word)
+        update(e.target.value);
     }
 
     function onKeyUp(e) {
         if (e.key === 'Enter' && e.shiftKey) {
             const word = el.wordInput.value;
-            if (successors.length > 0 && corpus.compare(word, successors[0].word) !== 0) {
-                if (word.length > 0) {
-                    const description = el.descriptionInput.value === ''
-                    ? null
-                    : el.descriptionInput.value.replaceAll('|', '&shy;').replaceAll('\\', '&shy;');
-                    const added = corpus.addWord(word, description, tags);
-                    if (added) {
-                        update(word);
-                        el.wordInput.select();
-                    }
+            if (word.length > 0 && successors.length > 0 && corpus.compare(word, successors[0].word) !== 0) {
+                const description = el.descriptionInput.value === ''
+                ? null
+                : el.descriptionInput.value.replaceAll('\xAD', '&shy;').replaceAll('|', '&shy;').replaceAll('\\', '&shy;');
+                const added = corpus.addWord(word, description, tags);
+                if (added) {
+                    update(word);
+                    el.wordInput.select();
+                    console.log(`added word „${word}“.`)
                 }
             }
         }
+    }
+
+    function onMouseWheel(e) {
+        if (corpus.size > 0 && currentIdx >= 0) {
+            const idx = (currentIdx + Math.floor(e.deltaY / 2)).clamp(0, corpus.size-1);
+            const word = corpus.words[idx].word;
+            if (word && word.length > 0) {
+                el.wordInput.value = word;
+                update(word);
+            }
+        }
+        e.preventDefault();
+    }
+
+    function onDescriptionPaste(e) {
+        e.preventDefault();
+        let pasted = (e.clipboardData || window.clipboardData).getData('text');
+        el.descriptionInput.value = pasted.replaceAll('\xAD', '|');
     }
 
     function onDeleteWord(e) {
         const left = e.target.previousSibling;
         const word = left instanceof HTMLInputElement ? left.value : left.textContent;
         if (word.length > 0) {
-            const deleted = corpus.deleteWord(word);
-            if (deleted) {
-                update(el.wordInput.value);
-            }
+            const wordIdx = corpus.indexOf(word);
+            if (wordIdx >= 0) {
+                const deleted = corpus.deleteWord(word);
+                if (deleted) {
+                    console.log(`deleted word „${word}“.`)
+                    if (left instanceof HTMLInputElement) {
+                        el.wordInput.value = successors.length > 0 
+                        ? successors[0].word
+                        : predecessors[successors.length-1].word;
+                    }
+                    update(el.wordInput.value);
+                }
+            }    
         }
     }
 
@@ -213,8 +271,9 @@ const HOST = (function(window) {
         const label = e.target.getAttribute('data-item');
         const idx = tags.indexOf(label);
         if (idx >= 0) {
-            tags.splice(idx, 1);
             e.target.parentElement.remove();
+            tags.splice(idx, 1);
+            localStorage.setItem('tags', JSON.stringify(tags));
         }
     }
 
@@ -242,7 +301,13 @@ const HOST = (function(window) {
         if (e.key === 'Enter' && !e.shiftKey) {
             addTag(el.tagInput.value);
             el.tagInput.value = '';
+            localStorage.setItem('tags', JSON.stringify(tags));
         }
+    }
+
+    function onWordClick(e) {
+        el.wordInput.value = e.target.textContent;
+        update(el.wordInput.value);
     }
 
     function initList() {
@@ -255,6 +320,7 @@ const HOST = (function(window) {
         };
         for (let i = 0; i < N_AROUND; ++i) {
             const word = document.createElement('span');
+            word.addEventListener('click', onWordClick);
             el.predecessors.push(word)
             el.main.appendChild(word);
             el.main.appendChild(makeDel());
@@ -267,10 +333,12 @@ const HOST = (function(window) {
         el.wordInput.type = 'text';
         el.wordInput.disabled = true;
         el.wordInput.addEventListener('input', onWordChange);
+        el.wordInput.addEventListener('change', onWordChange);
         el.main.append(el.wordInput);
         el.main.append(makeDel());
         for (let i = 0; i < N_AROUND; ++i) {
             const word = document.createElement('span');
+            word.addEventListener('click', onWordClick);
             el.successors.push(word)
             el.main.append(word);
             el.main.append(makeDel());
@@ -295,9 +363,14 @@ const HOST = (function(window) {
             tagContainer: document.querySelector('.tag-container'),
             tagInput: document.querySelector('.tag-container input'),
         };
+        el.main.addEventListener('wheel', onMouseWheel);
+        el.descriptionInput.addEventListener('paste', onDescriptionPaste);
         el.tagInput.addEventListener('keyup', onTagEnter);
         initList();
-        addTag('Kurator');
+        const tags = JSON.parse(localStorage.getItem('tags') || '[]').sort();
+        for (let tag of tags) {
+            addTag(tag);
+        }
     }
     window.addEventListener('load', main);
 })(window);
